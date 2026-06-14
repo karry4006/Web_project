@@ -35,6 +35,7 @@ Gemini API Key 請填在 `server/.env`：
 
 ```text
 GEMINI_API_KEY=你的_API_KEY
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 如果還沒有填 API Key，後端會先用本地關鍵字規則產生 tags，方便展示與測試。

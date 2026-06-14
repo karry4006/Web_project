@@ -82,9 +82,6 @@ async function generateTags(professor) {
 }
 
 async function generateTagsWithGemini(professor) {
-  const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
-
   const prompt = `
 請根據以下教授研究專長，產生 3 到 6 個繁體中文技術標籤。
 請只回傳 JSON 陣列，不要加解釋文字。例如：["人工智慧","資料探勘","網路安全"]
@@ -94,32 +91,53 @@ async function generateTagsWithGemini(professor) {
 研究描述：${professor.description || '未提供'}
 `;
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [{ text: prompt }],
-        },
-      ],
-    }),
-  });
+  const errors = [];
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Gemini API error: ${response.status} ${text}`);
+  for (const model of getGeminiModelsToTry()) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: prompt }],
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        errors.push(`${model}: ${response.status} ${text}`);
+        continue;
+      }
+
+      const result = await response.json();
+      const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const tags = parseGeminiTags(text);
+
+      if (tags.length > 0) {
+        return tags;
+      }
+    } catch (error) {
+      errors.push(`${model}: ${error.message}`);
+    }
   }
 
-  const result = await response.json();
-  const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  const tags = parseGeminiTags(text);
+  console.warn('Gemini models failed. Falling back to local tags:', errors.join(' | '));
+  return generateFallbackTags(professor.description || '');
+}
 
-  if (tags.length === 0) {
-    return generateFallbackTags(professor.description || '');
-  }
-
-  return tags;
+function getGeminiModelsToTry() {
+  return [...new Set([
+    process.env.GEMINI_MODEL,
+    'gemini-2.5-flash',
+    'gemini-flash-latest',
+    'gemini-2.5-flash-lite',
+  ].filter(Boolean))];
 }
 
 function parseGeminiTags(text) {
