@@ -1,0 +1,17 @@
+{
+  "name": "faculty-specs-ai-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node index.js",
+    "start": "node index.js",
+    "import": "node scripts/importProfessors.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
+    "sqlite3": "^5.1.7"
+  }
+}
